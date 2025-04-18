@@ -896,8 +896,7 @@ class ExcelExporter:
                 worksheet.write(0, col_num, value, header_format)
                 worksheet.set_column(col_num, col_num, 20)  # Set column width
 
-            # Save the Excel file
-            writer.close()
+            writer.close()  # saves the Excel file
 
             self.logger.info(f"Data exported successfully to {self.output_file}")
             return True
