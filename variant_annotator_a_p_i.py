@@ -40,7 +40,7 @@ def validate_genome_build(genome_build):
 
 def main(): # main function to run the variant annotator
     try:
-        genome_build = "GRCh38"  # Default genome build
+        genome_build = "GRCh38"  # default genome build
         if not validate_genome_build(genome_build):
             logger.error(f"Invalid genome build: {genome_build}")
             return
@@ -54,30 +54,18 @@ def main(): # main function to run the variant annotator
 
 class VariantAnnotatorSprint: # main class for validating and annotating genetic variants
     def __init__(self, base_url="https://rest.variantvalidator.org"):
-        # initialize the variant validator
-        # takes the API URL as argument
-
         self.base_url = base_url
+    # initialize the variant validator
+    # takes the API URL as argument
 
     def validate_variant_refseq(self, variant_id):
-        """
-        Validate a variant using RefSeq
-        Args:
-            variant_id (str): The variant identifier
-        Returns:
-            dict: Validation results
-        """
         endpoint = f"/VariantValidator/variantvalidator/{variant_id}/all"
         return self._make_validation_request(endpoint)
+    # validate a variant using RefSeq database
+    # takes the variant identifier as argument and creates endpoint URL
+    # makes API request using helper method
 
     def _make_validation_request(self, endpoint):
-        """
-        Make a request to the validation API
-        Args:
-            endpoint (str): API endpoint
-        Returns:
-            dict: API response
-        """
         try:
             response = requests.get(f"{self.base_url}{endpoint}")
             response.raise_for_status()
@@ -85,15 +73,11 @@ class VariantAnnotatorSprint: # main class for validating and annotating genetic
         except requests.exceptions.RequestException as e:
             logger.error(f"API request failed: {str(e)}")
             return None
+        # helper method for making API requests: make a request to the validation API
+        # takes API endpoint as the argument and combines it with endpoint
+        # returns JSON response or None if request fails
 
     def validate_hgvs_variant(self, hgvs_id):
-        """
-        Validate an HGVS variant identifier
-        Args:
-            hgvs_id (str): The HGVS variant identifier
-        Returns:
-            dict: Validation results
-        """
         try:
             validation = self.validate_variant_refseq(hgvs_id)
             if validation:
@@ -110,16 +94,11 @@ class VariantAnnotatorSprint: # main class for validating and annotating genetic
         except Exception as e:
             logger.error(f"Error validating HGVS variant: {str(e)}")
             return {"is_valid": False, "message": str(e)}
+        # validates an HGVS variant identifier using RefSeq validation
+        # takes HGVS variant identifier as the argument
+        # returns structured validation result in dict format
 
-    def annotate_variant(self, variant_id, genome_build="GRCh38"):
-        """
-        Annotate a variant with additional information
-        Args:
-            variant_id (str): The variant identifier
-            genome_build (str): Genome build version
-        Returns:
-            dict: Annotation results
-        """
+    def annotate_variant(self, variant_id, genome_build="GRCh38"): # annotates variant with additional information
         try:
             validation = self.validate_variant_refseq(variant_id)
             if not validation:
@@ -143,30 +122,20 @@ class VariantAnnotatorSprint: # main class for validating and annotating genetic
         except Exception as e:
             logger.error(f"Error annotating variant: {str(e)}")
             return {"error": str(e)}
-
-    def search_clinvar_by_hgvs(self, hgvs_id):
-        """
-        Search ClinVar database using HGVS identifier
-        Args:
-            hgvs_id (str): HGVS variant identifier
-        Returns:
-            dict: ClinVar search results
-        """
+        # takes the variant identifier as the argument and validates it against the genome build
+        # gets the appropriate annotator and returns structured annotation results in dict format
+    def search_clinvar_by_hgvs(self, hgvs_id): # integrates ClinVar
         try:
             endpoint = f"/clinvar/{hgvs_id}"
             return self._make_validation_request(endpoint)
         except Exception as e:
             logger.error(f"Error searching ClinVar: {str(e)}")
             return None
+        # takes HGVS varinat identifier as the argument
+        # searches ClinVar database using HGVS indentifier
+        # makes API request to ClinVar endpoint
 
     def extract_classifications(self, clinvar_data):
-        """
-        Extract clinical classifications from ClinVar data
-        Args:
-            clinvar_data (dict): ClinVar response data
-        Returns:
-            list: List of clinical classifications
-        """
         classifications = []
         try:
             if clinvar_data and 'classifications' in clinvar_data:
@@ -179,20 +148,16 @@ class VariantAnnotatorSprint: # main class for validating and annotating genetic
         except Exception as e:
             logger.error(f"Error extracting classifications: {str(e)}")
         return classifications
+    # extracts clinical classification from ClinVar database
+    # takes the ClinVar response data as the argument
+    # returns a list of structured classification information
 
 # Flask API setup
-application = Flask(__name__)
-api = Api(application)
+application = Flask(__name__) # creates flask application
+api = Api(application) # initializes REST API
+
 
 def validate_variant_refseq(variant_id, genome_build="GRCh38"):
-    """
-    Validate a variant using RefSeq through API
-    Args:
-        variant_id (str): The variant identifier
-        genome_build (str): Genome build version
-    Returns:
-        dict: Validation results
-    """
     try:
         if not validate_genome_build(genome_build):
             return {"error": f"Invalid genome build: {genome_build}"}
@@ -290,14 +255,13 @@ def query_ensembl_variant_grch37(variant_id):
         logger.error(f"Error querying Ensembl GRCh37: {str(e)}")
         return None
 
-# API Resource classes
-class ValidateRefSeqAPI(Resource):
+# API resource classes
+class ValidateRefSeqAPI(Resource): # validates a variant using RefSeq through API endpoint
     def get(self, variant_id):
-        """
-        API endpoint for RefSeq validation
-        """
         genome_build = request.args.get('genome_build', 'GRCh38')
         return validate_refseq_api(variant_id, genome_build)
+    # takes the variant identifier and genome build (optional) as the argument
+    # returns the validation results in dict format
 
 def validate_refseq_api(variant_id, genome_build="GRCh38"):
     """
