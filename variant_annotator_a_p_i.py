@@ -15,7 +15,7 @@ info_file_handler.setFormatter(log_formatter)   # applies formatter to handler
 logger = logging.getLogger(__name__)    # creates logger instance
 logger.setLevel(logging.INFO)   # sets logging level
 logger.addHandler(info_file_handler)    # adds file handler to logger
-
+ل
 # Section 2. Main VariantAnnotatorSprint Class
 class VariantAnnotatorSprint:
     """
