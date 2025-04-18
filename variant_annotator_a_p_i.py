@@ -1,20 +1,20 @@
 # Section 1. Import and Logging Setup
-import os
-import logging
-import requests
-from flask import Flask, jsonify, request
-from flask_restful import Resource, Api
-import json
+import os   # library required for operating sustem functionality
+import logging  # library required for logging functionality
+import requests # library required for making HTTP requests
+from flask import Flask, jsonify, request   # web framework components
+from flask_restful import Resource, Api # RESTful API support
+import json # library required for JSON handling
 
-# Set up logging
-current_directory = os.path.dirname(os.path.abspath(__file__))
-log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-info_file_handler = logging.FileHandler(os.path.join(current_directory, 'info.log'))
-info_file_handler.setFormatter(log_formatter)
+# Set up logging configuaration
+current_directory = os.path.dirname(os.path.abspath(__file__))  # gets current file's directory
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')   # defines log format
+info_file_handler = logging.FileHandler(os.path.join(current_directory, 'info.log'))    # creates log file handler
+info_file_handler.setFormatter(log_formatter)   # applies formatter to handler
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(info_file_handler)
+logger = logging.getLogger(__name__)    # creates logger instance
+logger.setLevel(logging.INFO)   # sets logging level
+logger.addHandler(info_file_handler)    # adds file handler to logger
 
 # Section 2. Main VariantAnnotatorSprint Class
 class VariantAnnotatorSprint:
@@ -38,14 +38,14 @@ class VariantAnnotatorSprint:
     """
 
     # 2-0 Main Class Initialization
-    def __init__(self):
-        self.base_url = "https://api.ncbi.nlm.nih.gov/variation/v0/"
-        self.clinvar_base_url = "https://www.ncbi.nlm.nih.gov/clinvar/"
-        self.ensembl_base_url = "https://rest.ensembl.org"
-        self.grch37_base_url = "https://grch37.rest.ensembl.org"
+    def __init__(self): # initializes base URLs for different services
+        self.base_url = "https://api.ncbi.nlm.nih.gov/variation/v0/"    # NCBI API
+        self.clinvar_base_url = "https://www.ncbi.nlm.nih.gov/clinvar/" # ClinVar database
+        self.ensembl_base_url = "https://rest.ensembl.org"  # Ensembl API (GRCh38)
+        self.grch37_base_url = "https://grch37.rest.ensembl.org"    # Ensembl API (GRCh37)
 
     # 2-1. Key method 1: HTTP Request Handler
-    def _make_validation_request(self, url, params=None, headers=None):
+    def _make_validation_request(self, url, params=None, headers=None): # private method to handle HTTP requests
         try:
             if headers is None:
                 headers = {"Content-Type": "application/json"}
@@ -59,7 +59,7 @@ class VariantAnnotatorSprint:
             return None
 
     # 2-2. Key method 2: ClinVar Data Methods
-    def get_clinvar_data(self, variant_id):
+    def get_clinvar_data(self, variant_id): # fetch data from ClinVar databases
         try:
             url = f"{self.clinvar_base_url}{variant_id}"
             response = requests.get(url)
@@ -71,16 +71,59 @@ class VariantAnnotatorSprint:
             return None
 
     def extract_classification(self, clinvar_data):
+        """
+        Extract clinical significance classification from ClinVar data.
+
+        Args:
+            clinvar_data (str): HTML or JSON response from ClinVar
+
+        Returns:
+            dict: Dictionary containing the classification, or None if extraction fails
+        """
         try:
             if not clinvar_data:
+                logger.warning("No ClinVar data provided")
                 return None
-            # Add your classification extraction logic here
-            return {"classification": "classification_placeholder"}
+
+            # If the response is in JSON format
+            if isinstance(clinvar_data, dict):
+                # Try to get classification from JSON structure
+                if 'clinical_significance' in clinvar_data:
+                    return {
+                        "classification": clinvar_data['clinical_significance']
+                    }
+
+            # If the response is HTML (common for ClinVar web responses)
+            elif isinstance(clinvar_data, str):
+                # Look for common classification terms
+                classification_terms = [
+                    'Pathogenic',
+                    'Likely pathogenic',
+                    'Uncertain significance',
+                    'Likely benign',
+                    'Benign',
+                    'Conflicting interpretations',
+                    'Not provided'
+                ]
+
+                # Convert to lowercase for case-insensitive comparison
+                clinvar_data_lower = clinvar_data.lower()
+
+                # Find the first matching classification
+                for term in classification_terms:
+                    if term.lower() in clinvar_data_lower:
+                        return {
+                            "classification": term
+                        }
+
+            logger.warning("Could not find classification in ClinVar data")
+            return {"classification": "Unknown"}
+
         except Exception as e:
             logger.error(f"Error extracting classification: {str(e)}")
             return None
 
-    # 2-3. Key method 3: Variant Validation Methods
+    # 2-3. Key method 3: Variant Validation Methods (RefSeq and Ensembl databases)
     def validate_variant_refseq(self, variant_id, genome_build="GRCh38"):
         try:
             if not validate_genome_build(genome_build):
@@ -139,11 +182,9 @@ class VariantAnnotatorSprint:
 # Section 3. Utility Functions
 def validate_genome_build(genome_build):
     """
-    Validate if the provided genome build is supported.
-
+    Validates if the provided genome build is supported.
     Args:
         genome_build (str): The genome build to validate
-
     Returns:
         bool: True if valid, False otherwise
     """
@@ -154,11 +195,9 @@ def validate_genome_build(genome_build):
 def validate_variant_ensembl(variant_id, genome_build="GRCh38"):
     """
     Validate an Ensembl variant ID.
-
     Args:
         variant_id (str): The variant ID to validate
         genome_build (str): The genome build to use (default: GRCh38)
-
     Returns:
         dict: Validation results
     """
@@ -221,20 +260,18 @@ def query_ensembl_variant_grch37(variant_id):
         return None
 
 # Section 4. API Resource Classes
-class ValidateRefSeqAPI(Resource):
+class ValidateRefSeqAPI(Resource):  # handles GET requests for RefSeq validation
     def get(self, variant_id):
         genome_build = request.args.get('genome_build', 'GRCh38')
         validator = VariantAnnotatorSprint()
         result = validator.validate_variant_refseq(variant_id, genome_build)
         return result
 
-class ValidateEnsemblAPI(Resource):
+class ValidateEnsemblAPI(Resource): # handles GET requests for Ensemble validation
     """
     REST API resource for validating variants using Ensembl.
-
     Endpoints:
         GET /api/validate/ensembl/<variant_id>: Validate a variant using Ensembl database
-
     Parameters:
         variant_id (str): The identifier of the variant to validate
     """
